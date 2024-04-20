@@ -1,9 +1,28 @@
 const express = require("express");
 const app = express();
-const fs = require("fs");
 const cors = require("cors");
 const port = 8080;
-const filename = __dirname + "/profs.json";
+
+// MongoDB database
+require("dotenv").config();
+const { MongoClient } = require("mongodb");
+const url = process.env.COSMOS_CONNECTION_STRING;
+const client = new MongoClient(url);
+
+// Connect to the database and create the collection
+async function connectAndCreateCollection() {
+    await client.connect();
+    const db = client.db("CloudComputinDB");
+    const collections = await db.listCollections().toArray();
+    const collectionExists = collections.some(
+        (collection) => collection.name === "profs"
+    );
+    if (!collectionExists) {
+        await db.createCollection("profs");
+    }
+}
+connectAndCreateCollection().catch(console.error);
+
 //Middleware
 app.use(express.json()); //for parsing application/json
 app.use(cors()); //for configuring Cross-Origin Resource Sharing (CORS)
@@ -12,63 +31,50 @@ function log(req, res, next) {
     next();
 }
 app.use(log);
+
+// Get the database and collection
+const db = client.db("CloudComputinDB");
+const collection = db.collection("profs");
 //Endpoints
-app.get("/profs", function (req, res) {
-    fs.readFile(filename, "utf8", function (err, data) {
-        res.writeHead(200, {
-            "Content-Type": "application/json",
-        });
-        res.end(data);
-    });
+app.get("/profs", async function (req, res) {
+    const data = await collection.find().toArray();
+    res.json(data);
 });
-app.get("/profs/:id", function (req, res) {
-    fs.readFile(filename, "utf8", function (err, data) {
-        const dataAsObject = JSON.parse(data)[req.params.id];
-        res.writeHead(200, {
-            "Content-Type": "application/json",
-        });
-        res.end(JSON.stringify(dataAsObject));
-    });
+
+app.get("/profs/:id", async function (req, res) {
+    const data = await collection.findOne({ _id: ObjectId(req.params.id) });
+    res.json(data);
 });
-app.put("/profs/:id", function (req, res) {
-    fs.readFile(filename, "utf8", function (err, data) {
-        let dataAsObject = JSON.parse(data);
-        dataAsObject[req.params.id].name = req.body.name;
-        dataAsObject[req.params.id].rating = req.body.rating;
-        fs.writeFile(filename, JSON.stringify(dataAsObject), () => {
-            res.writeHead(200, {
-                "Content-Type": "application/json",
-            });
-            res.end(JSON.stringify(dataAsObject));
-        });
-    });
+
+app.put("/profs/:id", async function (req, res) {
+    const updatedData = {
+        $set: { name: req.body.name, rating: req.body.rating },
+    };
+    await collection.updateOne({ _id: ObjectId(req.params.id) }, updatedData);
+    const data = await collection.findOne({ _id: ObjectId(req.params.id) });
+    res.json(data);
 });
-app.delete("/profs/:id", function (req, res) {
-    fs.readFile(filename, "utf8", function (err, data) {
-        let dataAsObject = JSON.parse(data);
-        dataAsObject.splice(req.params.id, 1);
-        fs.writeFile(filename, JSON.stringify(dataAsObject), () => {
-            res.writeHead(200, {
-                "Content-Type": "application/json",
-            });
-            res.end(JSON.stringify(dataAsObject));
-        });
-    });
+
+app.delete("/profs/:id", async function (req, res) {
+    await collection.deleteOne({ _id: ObjectId(req.params.id) });
+    res.json({ message: "Deleted successfully" });
 });
-app.post("/profs", function (req, res) {
-    fs.readFile(filename, "utf8", function (err, data) {
-        let dataAsObject = JSON.parse(data);
-        dataAsObject.push({
-            id: dataAsObject.length,
-            name: req.body.name,
-            rating: req.body.rating,
+
+app.post("/profs", async function (req, res) {
+    console.log(req.body);
+    const newData = { name: req.body.name, rating: req.body.rating };
+    collection
+        .insertOne(newData)
+        .then((result) => {
+            console.log(result);
+            res.json(result);
+        })
+        .catch((error) => {
+            console.error(error);
+            res.status(500).send(
+                "An error occurred while inserting the document."
+            );
         });
-        fs.writeFile(filename, JSON.stringify(dataAsObject), () => {
-            res.writeHead(200, {
-                "Content-Type": "application/json",
-            });
-            res.end(JSON.stringify(dataAsObject));
-        });
-    });
 });
+
 app.listen(port, () => console.log(`Server listening on port ${port}!`));
