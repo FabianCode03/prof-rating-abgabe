@@ -61,13 +61,20 @@ app.delete("/profs/:id", async function (req, res) {
 });
 
 app.post("/profs", async function (req, res) {
-    console.log(req.body);
     const newData = { name: req.body.name, rating: req.body.rating };
     collection
         .insertOne(newData)
         .then((result) => {
-            console.log(result);
-            res.json(result);
+            if (result.acknowledged === true) {
+                collection.findOne({ _id: result.insertedId }).then((data) => {
+                    console.log(data);
+                    res.json(data);
+                });
+            } else {
+                res.status(500).send(
+                    "An error occurred while inserting the document."
+                );
+            }
         })
         .catch((error) => {
             console.error(error);
@@ -76,5 +83,4 @@ app.post("/profs", async function (req, res) {
             );
         });
 });
-
 app.listen(port, () => console.log(`Server listening on port ${port}!`));
