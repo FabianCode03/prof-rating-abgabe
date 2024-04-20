@@ -5,7 +5,7 @@ const port = 8080;
 
 // MongoDB database
 require("dotenv").config();
-const { MongoClient } = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 const url = process.env.COSMOS_CONNECTION_STRING;
 const client = new MongoClient(url);
 
@@ -50,13 +50,16 @@ app.put("/profs/:id", async function (req, res) {
     const updatedData = {
         $set: { name: req.body.name, rating: req.body.rating },
     };
-    await collection.updateOne({ _id: ObjectId(req.params.id) }, updatedData);
-    const data = await collection.findOne({ _id: ObjectId(req.params.id) });
+    await collection.updateOne(
+        { _id: new ObjectId(req.params.id) },
+        updatedData
+    );
+    const data = await collection.findOne({ _id: new ObjectId(req.params.id) });
     res.json(data);
 });
 
 app.delete("/profs/:id", async function (req, res) {
-    await collection.deleteOne({ _id: ObjectId(req.params.id) });
+    await collection.deleteOne({ _id: new ObjectId(req.params.id) });
     res.json({ message: "Deleted successfully" });
 });
 
@@ -67,7 +70,6 @@ app.post("/profs", async function (req, res) {
         .then((result) => {
             if (result.acknowledged === true) {
                 collection.findOne({ _id: result.insertedId }).then((data) => {
-                    console.log(data);
                     res.json(data);
                 });
             } else {
@@ -77,7 +79,6 @@ app.post("/profs", async function (req, res) {
             }
         })
         .catch((error) => {
-            console.error(error);
             res.status(500).send(
                 "An error occurred while inserting the document."
             );

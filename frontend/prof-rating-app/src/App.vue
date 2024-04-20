@@ -38,27 +38,31 @@ export default {
                     rating: e.rating,
                 })
                 .then((response) => {
-                    console.log("response", response);
-                    console.log("response.data", response.data);
-                    console.log("listOfEntries", this.listOfEntries);
                     this.listOfEntries.push(response.data);
                 });
         },
-        editEntry: function (e) {
+        removeEntry: function (index) {
             axios
-                .put("http://localhost:8080/profs/" + e.index, {
-                    name: e.name,
-                    rating: e.rating,
-                })
+                .delete(
+                    "http://localhost:8080/profs/" +
+                        this.listOfEntries[Object.values(index)]._id
+                )
                 .then((response) => {
-                    this.listOfEntries = response.data; //TODO: change this, do not return full list
+                    this.listOfEntries.splice(Object.values(index), 1);
                 });
         },
-        removeEntry: function (e) {
+        editEntry: function (index) {
             axios
-                .delete("http://localhost:8080/profs/" + e.index)
+                .put(
+                    "http://localhost:8080/profs/" +
+                        this.listOfEntries[index["index"]]._id,
+                    {
+                        name: this.listOfEntries[index["index"]].name,
+                        rating: this.listOfEntries[index["index"]].rating,
+                    }
+                )
                 .then((response) => {
-                    this.listOfEntries = response.data;
+                    this.listOfEntries[index["index"]] = response.data;
                 });
         },
     },
